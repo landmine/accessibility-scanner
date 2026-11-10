@@ -1,0 +1,58 @@
+name: Publish demo site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "sites/site-with-errors/**"
+      - ".github/workflows/publish-demo-site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download repository
+        uses: actions/checkout@v6
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Set up Ruby and install dependencies
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          working-directory: sites/site-with-errors
+          bundler-cache: true
+
+      - name: Build demo
+        working-directory: sites/site-with-errors
+        env:
+          JEKYLL_ENV: production
+        run: bundle exec jekyll build --destination "$GITHUB_WORKSPACE/_site"
+
+      - name: Upload built website
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish website
+        id: deployment
+        uses: actions/deploy-pages@v4
